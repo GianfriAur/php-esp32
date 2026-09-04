@@ -1,0 +1,82 @@
+name: Bug report
+description: Something built or ran wrong on the board.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Please fill in the board and versions — a bug on this project almost
+        always depends on them. If it reproduces on the latest `master`, even better.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you expected, and what happened instead.
+    validations:
+      required: true
+  - type: dropdown
+    id: board
+    attributes:
+      label: Board
+      options:
+        - esp32-p4-zero
+        - esp32-p4-pico
+        - esp32-p4-eth
+        - esp32-p4-wifi-c6
+        - esp32-s3-zero
+        - esp32-s3-pico
+        - esp32-s3-eth
+        - other (say which in "What happened")
+    validations:
+      required: true
+  - type: input
+    id: php_version
+    attributes:
+      label: PHP version
+      description: The version built (e.g. 8.4.25). "default" is fine if you didn't pin one.
+      placeholder: "8.4.25"
+    validations:
+      required: true
+  - type: dropdown
+    id: project_type
+    attributes:
+      label: Project type
+      options:
+        - init-loop
+        - web-server
+        - not sure
+    validations:
+      required: true
+  - type: input
+    id: extensions
+    attributes:
+      label: Extensions enabled
+      description: The optional extensions in your config (e.g. wifi, sqlite, openssl full + tls). "none" is fine.
+      placeholder: "wifi, s3_onboard_rgb"
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: The smallest `index.php` / config that shows it, if you can.
+    validations:
+      required: true
+  - type: textarea
+    id: serial
+    attributes:
+      label: Serial output
+      description: The relevant serial log (boot + the failure). RENDERED AS CODE.
+      render: shell
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      description: phpflash version (or "built by hand"), ESP-IDF version, and host OS.
+      placeholder: "phpflash v0.10.0, ESP-IDF v5.5.5, Ubuntu 24.04"
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I redacted secrets from the log (WiFi passwords, `.env` values, tokens) — see the [security policy](https://github.com/php-baremetal/php-esp32/blob/master/SECURITY.md).
+          required: true
+        - label: It still reproduces on the latest `master` (or I said which version I'm on).

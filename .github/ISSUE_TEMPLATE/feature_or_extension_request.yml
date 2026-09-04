@@ -1,0 +1,42 @@
+name: Feature or extension request
+description: Suggest a capability, or ask for a PHP extension to be ported.
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have a look at the [roadmap](https://github.com/php-baremetal/php-esp32/blob/master/ROADMAP.md)
+        and, for a PHP extension, the [porting status](https://github.com/php-baremetal/php-esp32/blob/master/docs/extensions/porting-status.md)
+        first — it may already be planned, shipped, or not possible on a bare-metal target.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of request is this?
+      options:
+        - A PHP extension to port (from the source tree)
+        - A new capability / native extension (hardware or runtime)
+        - An improvement to something that exists
+        - Something else
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What would you like?
+      description: For a PHP extension, name it (e.g. `bcmath`). For a capability, describe it.
+    validations:
+      required: true
+  - type: textarea
+    id: use_case
+    attributes:
+      label: What would you use it for?
+      description: The concrete problem it solves — this helps rank it.
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I checked the roadmap and the extension porting status.
+          required: true

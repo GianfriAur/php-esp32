@@ -1,0 +1,67 @@
+name: Board support request
+description: Ask for support for an ESP32 board that isn't covered yet.
+labels: ["board"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A board is a self-contained profile under `boards/` — a good first contribution, too (see
+        [CONTRIBUTING](https://github.com/php-baremetal/php-esp32/blob/master/CONTRIBUTING.md) and
+        [boards/README](https://github.com/php-baremetal/php-esp32/blob/master/boards/README.md)).
+        Two hard requirements: the part needs **external PSRAM** and **≥ 8 MB flash**, or the engine
+        won't fit.
+  - type: input
+    id: board
+    attributes:
+      label: Board name and link
+      description: The exact product name and a link to the vendor page.
+      placeholder: "Waveshare ESP32-S3-Zero — https://..."
+    validations:
+      required: true
+  - type: dropdown
+    id: chip
+    attributes:
+      label: Chip family
+      options:
+        - ESP32-S3 (Xtensa)
+        - ESP32-P4 (RISC-V)
+        - other (say which below)
+    validations:
+      required: true
+  - type: input
+    id: psram
+    attributes:
+      label: PSRAM (size and type)
+      placeholder: "8 MB Octal, or 2 MB Quad"
+    validations:
+      required: true
+  - type: input
+    id: flash
+    attributes:
+      label: Flash size
+      placeholder: "16 MB"
+    validations:
+      required: true
+  - type: dropdown
+    id: networking
+    attributes:
+      label: Networking
+      options:
+        - none
+        - WiFi (on-chip)
+        - Ethernet (which PHY/controller?)
+        - WiFi via companion (ESP-HOSTED)
+  - type: input
+    id: docs
+    attributes:
+      label: Datasheet / schematic
+      description: A link to the schematic or pinout, if you have one — it makes the profile much easier.
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: This part has external PSRAM and at least 8 MB of flash.
+          required: true
+        - label: I checked it isn't already covered in the [supported hardware](https://github.com/php-baremetal/php-esp32#supported-hardware) list.
+          required: true
