@@ -48,6 +48,19 @@ The release where the platform grows new axes. These are larger pieces of work, 
   driven from PHP — so people can see what the platform actually does end to end, beyond the
   single-feature examples. It doubles as the reference for how to structure a real project.
 
+## 2.5.0 — refining the event system — target: end of 2026
+
+A point release that polishes the event-driven platform shipped in 2.0.0, once it has some real use.
+The headline is ergonomics, not new capabilities.
+
+- **Per-instance event listening.** Alongside the global `Events::listen(SomeEvent::class, …)` (which
+  fires for every device), let a handler be registered on a single device object directly —
+  `$panel->on(Tapped::class, …)` — so a project with two identical devices (say two touch panels, one
+  per I²C bus) can route "this one was tapped" without filtering on the event's source by hand. It is
+  sugar over the event's `source` field, which 2.0.0 already carries, so it is additive and breaks
+  nothing.
+- Room here for other event-system refinements that surface once people build on 2.0.0.
+
 ## 3.0.0 — beyond ESP32: going multi-family — target: end of March 2027
 
 The **goal milestone**: the release where "PHP on a microcontroller" stops meaning "PHP on an ESP32".
