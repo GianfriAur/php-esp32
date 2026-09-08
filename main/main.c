@@ -48,6 +48,8 @@
 #include "zend_exceptions.h"
 #include "php_variables.h"   /* php_register_variable / TRACK_VARS_SERVER (a minimal $_SERVER) */
 
+#include "boot.h"   /* PHP_TASK_CORE / HTTPD_TASK_CORE, php_task() prototype (app_main is in boot.c) */
+
 static const char *TAG = "php-esp32";
 
 /* Give a run-once (init-loop) script a minimal $_SERVER, like a plain "GET /" request, so a
@@ -133,17 +135,6 @@ static void net_apply_static_dns(const char *list)
     }
 }
 #endif
-
-/* 64 KB: with a smaller stack the board resets on trivial scripts.
- * ESP-IDF's xTaskCreate takes the stack size in bytes. */
-#define PHP_TASK_STACK_BYTES (64 * 1024)
-
-/* Pin the tasks to opposite cores (both the ESP32-S3 and the ESP32-P4 are dual-core): the PHP
- * reactor on core 0, httpd on core 1. Without pinning the scheduler may migrate php_task onto the
- * core the WiFi/lwIP tasks already sit on; opposite cores also let a request's static-file I/O on
- * httpd overlap with PHP work instead of contending with it. */
-#define PHP_TASK_CORE   0
-#define HTTPD_TASK_CORE 1
 
 /* Two independent sources, mounted together when both are present:
  *   - the microSD at /sdcard: writable data (SQLite, logs, files the script writes).
@@ -907,7 +898,9 @@ static void opcache_ini_defaults(HashTable *ht)
 }
 #endif /* PHP_EXT_OPCACHE_ENABLED */
 
-static void php_task(void *arg)
+/* The PHP reactor task. Created (pinned) by app_main() in boot.c; declared in boot.h. Still carries
+ * the whole bootstrap for now -- it is extracted into boot.c in the following steps. */
+void php_task(void *arg)
 {
     (void)arg;
 
@@ -1127,10 +1120,4 @@ static void php_task(void *arg)
 
     ESP_LOGI(TAG, "done -- heap free: %u bytes", (unsigned) esp_get_free_heap_size());
     vTaskDelete(NULL);
-}
-
-void app_main(void)
-{
-    ESP_LOGI(TAG, "starting PHP runtime");
-    xTaskCreatePinnedToCore(php_task, "php", PHP_TASK_STACK_BYTES, NULL, 5, NULL, PHP_TASK_CORE);
 }

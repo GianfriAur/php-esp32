@@ -58,7 +58,7 @@ else()
 endif()
 
 idf_component_register(
-    SRCS "main.c" "fs_pathnorm.c" "fs_glob.c" "${_env_src}" ${BOARD_SRCS}
+    SRCS "boot.c" "main.c" "fs_pathnorm.c" "fs_glob.c" "${_env_src}" ${BOARD_SRCS}
     INCLUDE_DIRS "." ${BOARD_INCLUDE_DIRS}
     # esp_partition/fatfs/vfs: main.c mounts the optional read-only embedded source
     # partition itself (board-agnostic); the board adds its own storage drivers too.
