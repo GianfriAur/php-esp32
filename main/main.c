@@ -138,6 +138,13 @@ static void net_apply_static_dns(const char *list)
  * ESP-IDF's xTaskCreate takes the stack size in bytes. */
 #define PHP_TASK_STACK_BYTES (64 * 1024)
 
+/* Pin the tasks to opposite cores (both the ESP32-S3 and the ESP32-P4 are dual-core): the PHP
+ * reactor on core 0, httpd on core 1. Without pinning the scheduler may migrate php_task onto the
+ * core the WiFi/lwIP tasks already sit on; opposite cores also let a request's static-file I/O on
+ * httpd overlap with PHP work instead of contending with it. */
+#define PHP_TASK_CORE   0
+#define HTTPD_TASK_CORE 1
+
 /* Two independent sources, mounted together when both are present:
  *   - the microSD at /sdcard: writable data (SQLite, logs, files the script writes).
  *   - the embedded PHP source at /app: a read-only FAT image in internal flash, built
@@ -828,6 +835,7 @@ static void run_web_server(const char *script, const char *init_script)
     cfg.max_uri_handlers = 12;      /* one wildcard handler per HTTP method (below) */
     cfg.max_resp_headers = WS_MAX_HDR;  /* a framework sets several (Cache-Control, Set-Cookie, ...) */
     cfg.max_req_hdr_len  = 2048;    /* browsers send a big header block (Cookie, User-Agent, sec-ch-*) */
+    cfg.core_id = HTTPD_TASK_CORE;  /* opposite core to php_task, so httpd's FATFS I/O overlaps PHP */
 
     httpd_handle_t server = NULL;
     esp_err_t err = httpd_start(&server, &cfg);
@@ -1120,5 +1128,5 @@ static void php_task(void *arg)
 void app_main(void)
 {
     ESP_LOGI(TAG, "starting PHP runtime");
-    xTaskCreate(php_task, "php", PHP_TASK_STACK_BYTES, NULL, 5, NULL);
+    xTaskCreatePinnedToCore(php_task, "php", PHP_TASK_STACK_BYTES, NULL, 5, NULL, PHP_TASK_CORE);
 }
