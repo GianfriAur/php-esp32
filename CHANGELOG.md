@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.0.0] — WIP — First stable release
+## [1.0.0] — First stable release
 
 The consolidation milestone (see [ROADMAP.md](ROADMAP.md)); still in progress. What's landed so far:
 
