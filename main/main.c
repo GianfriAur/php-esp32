@@ -843,6 +843,7 @@ static void run_web_server(const char *script, const char *init_script)
         ESP_LOGE(TAG, "httpd_start: %s", esp_err_to_name(err));
         for (;;) { vTaskDelay(pdMS_TO_TICKS(10000)); }   /* don't fall through to shutdown */
     }
+    ESP_LOGI(TAG, "httpd pinned to core %d (php_task on core %d)", HTTPD_TASK_CORE, PHP_TASK_CORE);
     /* Route every method+path to the one handler; PHP does the real routing. */
     static const httpd_method_t methods[] = {
         HTTP_GET, HTTP_POST, HTTP_PUT, HTTP_PATCH, HTTP_DELETE, HTTP_HEAD, HTTP_OPTIONS,
@@ -914,6 +915,9 @@ static void php_task(void *arg)
      * which creates a per-call lock that aborts on this target. */
     setvbuf(stdout, NULL, _IOLBF, 256);
     setvbuf(stderr, NULL, _IOLBF, 256);
+
+    /* Report the core we actually landed on -- proves the pinning took (see PHP_TASK_CORE). */
+    ESP_LOGI(TAG, "php_task pinned to core %d", xPortGetCoreID());
 
     /* PHP allocations go to PSRAM (see CONFIG_SPIRAM_MALLOC_ALWAYSINTERNAL=0), which
      * keeps internal RAM free for DMA and FreeRTOS. */

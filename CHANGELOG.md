@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.0] - WIP - Explicit pinning - Refactor 
+
+First step of the dual-core work behind the upcoming `event-driven` mode: make core assignment
+deterministic instead of leaving it to the scheduler.
+
+### Changed
+- **`php_task` and `httpd` are pinned to opposite cores.** The PHP reactor (`php_task`) is pinned to
+  core 0 and, in the `web-server` model, `httpd` to core 1. Without pinning the scheduler could migrate
+  `php_task` onto the core the WiFi/lwIP tasks already run on; pinning also lets a request's static-file
+  I/O on `httpd` overlap with PHP work instead of contending with it, and makes behaviour reproducible
+  for benchmarking. A boot-time log reports the core each task landed on
+  (`php_task pinned to core 0`, `httpd pinned to core 1`).
+
 ## [1.0.0] — First stable release
 
 The consolidation milestone (see [ROADMAP.md](ROADMAP.md)); still in progress. What's landed so far:
