@@ -58,8 +58,8 @@ else()
 endif()
 
 idf_component_register(
-    SRCS "boot.c" "php_task.c" "main.c" "fs_pathnorm.c" "fs_glob.c" "${_env_src}" ${BOARD_SRCS}
-    INCLUDE_DIRS "." ${BOARD_INCLUDE_DIRS}
+    SRCS "boot.c" "php_task.c" "main.c" "models/init_loop.c" "models/web_server.c" "fs_pathnorm.c" "fs_glob.c" "${_env_src}" ${BOARD_SRCS}
+    INCLUDE_DIRS "." "models" ${BOARD_INCLUDE_DIRS}
     # esp_partition/fatfs/vfs: main.c mounts the optional read-only embedded source
     # partition itself (board-agnostic); the board adds its own storage drivers too.
     REQUIRES php php_ext_gpio php_ext_store php_ext_mem php_ext_sys php_project_exts esp_partition esp_app_format fatfs vfs ${WEB_SERVER_REQUIRES} ${RGB_REQUIRES} ${WIFI_REQUIRES} ${BOARD_REQUIRES}
