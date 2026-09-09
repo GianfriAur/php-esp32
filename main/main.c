@@ -48,11 +48,10 @@
 #include "zend_exceptions.h"
 #include "php_variables.h"   /* php_register_variable / TRACK_VARS_SERVER (a minimal $_SERVER) */
 
-#include "boot.h"       /* PHP_TASK_CORE / HTTPD_TASK_CORE, php_task() prototype (app_main is in boot.c) */
-#include "php_task.h"   /* run_php_file() / run_setup_loop() -- the reactor primitives */
-#include "app.h"        /* s_board_ip, register_esp32_server_vars -- shared with the model runners */
-#include "web_server.h" /* run_web_server() -- the web-server model */
-#include "init_loop.h"  /* run_init_loop() -- the init-loop model */
+#include "boot.h"          /* PHP_TASK_CORE / HTTPD_TASK_CORE, php_task() prototype (app_main is in boot.c) */
+#include "php_task.h"      /* run_php_file() / run_setup_loop() -- the reactor primitives */
+#include "app.h"           /* s_board_ip, register_esp32_server_vars, g_entry_script/g_src_dir -- shared with the runners */
+#include "model_runner.h"  /* model_runner_current() -- the project type's execution model */
 
 static const char *TAG = "php-esp32";
 
@@ -62,6 +61,11 @@ static const char *TAG = "php-esp32";
 /* The board's own IP once the link is up -- used for $_SERVER['SERVER_ADDR'] in the web-server
  * model. Set in php_task when the network comes up; empty if there's no network. */
 char s_board_ip[16] = "";   /* shared with web_server.c via app.h */
+
+/* The resolved entry script and its source mount, published here in php_task once known so the
+ * selected model runner (which takes no args, §8.2) can read them. NULL until then. */
+const char *g_entry_script = NULL;
+const char *g_src_dir       = NULL;
 
 /* php-esp32 identity, exposed to PHP in $_SERVER (both execution models) and in phpinfo()'s
  * "PHP Baremetal Infos" table (info.c reads these globals directly). Deliberately NOT setenv'd, so
@@ -434,27 +438,12 @@ void php_task(void *arg)
     fflush(stdout);
 
     if (script) {
-#ifdef PHP_PROJECT_WEB_SERVER
-        /* web-server model: hand the script to the HTTP server, which runs it per request.
-         * Never returns. */
-        const char *init_script = NULL;
-#ifdef PHP_WEB_INIT
-        /* Resolve the one-time init script against the same source mount as the entry, and only
-         * pass it on if it is actually there. */
-        static char init_path[160];
-        if (src_dir) {
-            snprintf(init_path, sizeof init_path, "%s/%s", src_dir, PHP_WEB_INIT);
-            if (access(init_path, R_OK) == 0) {
-                init_script = init_path;
-            } else {
-                ESP_LOGW(TAG, "web-server init '%s' configured but not found at %s", PHP_WEB_INIT, init_path);
-            }
-        }
-#endif
-        run_web_server(script, init_script);
-#else
-        run_init_loop(script);
-#endif
+        /* Publish the entry + its source mount, then hand off to the model runner the project type
+         * selected (init-loop / web-server / later event-driven). The choice lives in one place --
+         * model_runner.c -- so this boot path has no per-model #ifdef. Most runners never return. */
+        g_entry_script = script;
+        g_src_dir      = src_dir;
+        model_runner_current()->run();
     } else {
         printf("no index.php (embedded or microSD); engine check: ");
         fflush(stdout);

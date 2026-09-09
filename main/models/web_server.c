@@ -4,6 +4,7 @@
 #ifdef PHP_PROJECT_WEB_SERVER
 
 #include <stdlib.h>       /* realloc (the per-request output buffer) */
+#include <unistd.h>       /* access / R_OK (resolving the init script) */
 
 #include "esp_log.h"      /* ESP_LOGI / ESP_LOGE */
 
@@ -494,8 +495,9 @@ static void web_serve_one(void)
 /* Start the HTTP server, then loop in php_task serving one request at a time. php_embed_init()
  * has already brought the engine up and opened one request; we close that so each HTTP request
  * owns a clean cycle. Never returns. */
-void run_web_server(const char *script, const char *init_script)
+void run_web_server(void)
 {
+    const char *script = g_entry_script;   /* published by php_task (app.h) */
     s_web_script = script;
     /* Document root = the directory the entry script lives in (public/ for Laravel) -- where static
      * files are served from and what $_SERVER['DOCUMENT_ROOT'] reports. */
@@ -504,6 +506,22 @@ void run_web_server(const char *script, const char *init_script)
     if (sl && sl != s_docroot) {
         *sl = '\0';
     }
+
+    /* Resolve the one-time init script ([web-server] init, -DPHP_WEB_INIT) against the same source
+     * mount as the entry, and only keep it if it is actually there. This model owns its init: main.c
+     * just hands off. */
+    const char *init_script = NULL;
+#ifdef PHP_WEB_INIT
+    static char init_path[160];
+    if (g_src_dir) {
+        snprintf(init_path, sizeof init_path, "%s/%s", g_src_dir, PHP_WEB_INIT);
+        if (access(init_path, R_OK) == 0) {
+            init_script = init_path;
+        } else {
+            ESP_LOGW(TAG, "web-server init '%s' configured but not found at %s", PHP_WEB_INIT, init_path);
+        }
+    }
+#endif
 
     /* One-time init script: run it once, here, in the request php_embed_init() already opened -- so
      * its output goes to the console (we have not redirected output to the HTTP response yet). Its

@@ -1,5 +1,7 @@
 #pragma once
 
-/* The web-server execution model (defined in web_server.c, built only for PHP_PROJECT_WEB_SERVER):
- * start the HTTP server and loop in php_task serving one request at a time. Never returns. */
-void run_web_server(const char *script, const char *init_script);
+/* The web-server execution model, defined in web_server.c: an esp_http_server in front of PHP, run
+ * fresh per request. The model_runner run() entry (§8.2) -- takes no arguments, reads g_entry_script
+ * / g_src_dir (app.h) and resolves its own -DPHP_WEB_INIT init script. Selected when
+ * PHP_PROJECT_WEB_SERVER is set. Never returns. */
+void run_web_server(void);

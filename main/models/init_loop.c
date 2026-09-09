@@ -36,8 +36,9 @@ static void set_run_once_server_vars(const char *script)
     register_esp32_server_vars(srv);
 }
 
-void run_init_loop(const char *script)
+void run_init_loop(void)
 {
+    const char *script = g_entry_script;   /* published by php_task (app.h) */
     printf("--- %s ---\n", script);
     fflush(stdout);
     /* The embed SAPI marks headers as already sent at init (it's a CLI-like, no-HTTP SAPI). In this
