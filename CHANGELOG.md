@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.1.0] - WIP - Explicit pinning - Refactor 
+## [1.0.1] - Explicit pinning - Refactor Base code
 
 First step of the dual-core work behind the upcoming `event-driven` mode: make core assignment
 deterministic instead of leaving it to the scheduler.
@@ -12,6 +12,15 @@ deterministic instead of leaving it to the scheduler.
   I/O on `httpd` overlap with PHP work instead of contending with it, and makes behaviour reproducible
   for benchmarking. A boot-time log reports the core each task landed on
   (`php_task pinned to core 0`, `httpd pinned to core 1`).
+- **The firmware core is reseamed into boot / task / model runners** — a pure code move, no behaviour
+  change, so the coming `event-driven` mode lands as a clean file instead of a third `#ifdef`. `main.c`
+  used to interleave both execution models behind preprocessor branches; it is now split by
+  responsibility: `boot.c` owns the bootstrap (mounts, network, the embed SAPI hooks, `.env`, the
+  engine and the project extensions); `php_task.c` owns the reactor task plus the `zend_try`/`catch` +
+  GC wrapper; and each execution model is its own file under `main/models/` (`init_loop.c`,
+  `web_server.c`), picked at build time by a single `model_runner` selector. `main.c` is now just the
+  shared state. The `web-server` model's former `ws_*` names are `web_*`, freeing `ws_*` for real
+  WebSocket support later.
 
 ## [1.0.0] — First stable release
 

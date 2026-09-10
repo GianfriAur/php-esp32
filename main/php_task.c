@@ -1,19 +1,67 @@
-/* php_task.c -- the reactor primitives: compile+run a PHP file, and the Arduino-style setup()/loop()
- * driver with the per-call exception handling + periodic GC. The php_task() function itself still
- * lives in main.c while its bootstrap is extracted into boot.c; it joins this file once that's done. */
+/* php_task.c -- the PHP reactor task and its primitives. php_task() is the task body: it lets boot.c
+ * bring the runtime up, hands off to the model runner the project type selected (or the engine-check
+ * fallback when there's no script), then tears the runtime down. The primitives it and the runners
+ * lean on -- compile+run a PHP file, and the Arduino-style setup()/loop() driver with per-call
+ * exception handling + periodic GC -- live here too. */
+#include <stdio.h>
 #include <string.h>
 
 #include "esp_log.h"
 #include "esp_system.h"    /* esp_get_free_heap_size */
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 #include "php_embed.h"
 #include "zend_API.h"
+#include "zend_execute.h"  /* zend_eval_string (the no-script engine check) */
 #include "zend_stream.h"
 #include "zend_exceptions.h"
 
+#include "boot.h"          /* boot_php_runtime() / boot_php_shutdown(), the pinning defines */
+#include "app.h"           /* g_entry_script -- did boot find a script? */
+#include "model_runner.h"  /* model_runner_current() -- the project type's execution model */
 #include "php_task.h"
 
 static const char *TAG = "php-esp32";
+
+/*
+ * The PHP reactor task. Created (pinned) by app_main() in boot.c. Line-buffers the console, brings
+ * the runtime up via boot.c, then runs the selected model (init-loop / web-server / later
+ * event-driven) -- most of which never return. With no script it runs a one-shot engine check so the
+ * console still shows the engine is alive.
+ */
+void php_task(void *arg)
+{
+    (void)arg;
+
+    /* Line-buffer stdout/stderr: unbuffered streams push newlib through __sbprintf, which creates a
+     * per-call lock that aborts on this target. Must happen before any output. */
+    setvbuf(stdout, NULL, _IOLBF, 256);
+    setvbuf(stderr, NULL, _IOLBF, 256);
+
+    /* Report the core we actually landed on -- proves the pinning took (see PHP_TASK_CORE). */
+    ESP_LOGI(TAG, "php_task pinned to core %d", xPortGetCoreID());
+
+    if (!boot_php_runtime()) {   /* mounts, network, SAPI hooks, .env, engine, extensions */
+        vTaskDelete(NULL);
+        return;
+    }
+
+    if (g_entry_script) {
+        /* Hand off to the model runner the project type selected. The choice lives in one place --
+         * model_runner.c -- so this path has no per-model #ifdef. Most runners never return. */
+        model_runner_current()->run();
+    } else {
+        printf("no index.php (embedded or microSD); engine check: ");
+        fflush(stdout);
+        zend_eval_string("echo 1+1;", NULL, "boot");
+        printf("\n");
+        fflush(stdout);
+    }
+
+    boot_php_shutdown();
+    vTaskDelete(NULL);
+}
 
 /* Compile and run a file (handles <?php ... ?>). Defines any functions in it. */
 void run_php_file(const char *path)
