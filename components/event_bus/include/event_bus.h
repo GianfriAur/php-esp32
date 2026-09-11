@@ -71,3 +71,45 @@ uint16_t evt_pool_in_use(evt_class_t cls);
 uint16_t evt_pool_peak(evt_class_t cls);
 uint16_t evt_pool_capacity(evt_class_t cls);
 uint32_t evt_pool_in_use_by_tag(uint16_t tag);   /* the leak oracle */
+
+/* Queue depth and registry limits, overridable at build time. */
+#ifndef EVT_QUEUE_DEPTH
+#define EVT_QUEUE_DEPTH      64
+#endif
+#ifndef EVT_MAX_LISTENERS
+#define EVT_MAX_LISTENERS    32
+#endif
+#ifndef EVT_FRAME_DEPTH_MAX
+#define EVT_FRAME_DEPTH_MAX  16
+#endif
+
+typedef void (*evt_handler_fn)(evt_t *e, void *ctx);
+
+/* Register a handler for a tag. Handlers fire in registration order. False if the registry is full. */
+bool evt_listen(uint16_t tag, evt_handler_fn fn, void *ctx);
+
+/* Queue an event for the reactor to run later; ownership of the slot passes to the queue. Returns
+ * false (and does not consume the slot) when the queue is full. Never blocks. */
+bool evt_dispatch(evt_t *e);
+
+/* Call the tag's handlers now, on the current stack. No queue, no ownership transfer: the caller
+ * keeps `e` and releases it (or not, for a stack event). */
+void evt_now(evt_t *e);
+
+/* Run every queued event through its handlers, releasing each slot after its last handler. Returns
+ * the number processed. This is the reactor's drain step. */
+int evt_drain(void);
+
+/* Clear listeners, the queue, and the frame stack. For tests and re-init. */
+void evt_bus_reset(void);
+
+/* Current dispatch-frame nesting (0 at rest). */
+int evt_frame_depth(void);
+
+/* Release the slot held by every frame opened since depth `base`, for an abnormal exit. The PHP
+ * dispatcher calls this from its zend_catch; drain()/now() call it when a handler bails out. */
+void evt_frames_unwind_to(int base);
+
+/* Jump out of the current drain()/now(), unwinding its frames. The C stand-in for zend_bailout;
+ * a no-op outside a drain/now. */
+void evt_bailout(void);
