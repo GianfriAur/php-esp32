@@ -83,6 +83,15 @@ uint32_t evt_pool_in_use_by_tag(uint16_t tag);   /* the leak oracle */
 #define EVT_FRAME_DEPTH_MAX  16
 #endif
 
+/* Cascade limits. dispatch: cascading queue hops before an event is dropped. now: nested frames on
+ * the C stack before a call is refused (it grows the real stack, so overflow resets the board). */
+#ifndef EVT_DISPATCH_DEPTH_MAX
+#define EVT_DISPATCH_DEPTH_MAX  16
+#endif
+#ifndef EVT_NOW_DEPTH_MAX
+#define EVT_NOW_DEPTH_MAX       8
+#endif
+
 typedef void (*evt_handler_fn)(evt_t *e, void *ctx);
 
 /* Register a handler for a tag. Handlers fire in registration order. False if the registry is full. */
@@ -113,3 +122,8 @@ void evt_frames_unwind_to(int base);
 /* Jump out of the current drain()/now(), unwinding its frames. The C stand-in for zend_bailout;
  * a no-op outside a drain/now. */
 void evt_bailout(void);
+
+/* Cascade diagnostics. */
+uint32_t evt_dispatch_dropped(void);   /* events dropped for exceeding the dispatch depth */
+uint32_t evt_now_rejected(void);       /* now() calls refused for exceeding the now depth */
+int      evt_now_depth(void);          /* current nested-now depth (0 at rest) */

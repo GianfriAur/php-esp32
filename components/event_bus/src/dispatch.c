@@ -7,6 +7,13 @@
 #include <string.h>
 #include <setjmp.h>
 
+#ifdef ESP_PLATFORM
+#include "esp_log.h"
+#define EVT_LOGW(...) ESP_LOGW("event_bus", __VA_ARGS__)
+#else
+#define EVT_LOGW(...) ((void) 0)
+#endif
+
 typedef struct {
     uint16_t       tag;
     evt_handler_fn fn;
@@ -30,6 +37,11 @@ static int     s_frame_top;
 static jmp_buf s_jb;
 static bool    s_protected;   /* inside a drain/now setjmp region */
 
+static uint8_t  s_current_depth;      /* depth of the event drain is running */
+static int      s_now_depth;          /* nested now() frames on the C stack */
+static uint32_t s_dispatch_dropped;
+static uint32_t s_now_rejected;
+
 bool evt_listen(uint16_t tag, evt_handler_fn fn, void *ctx)
 {
     if (!fn) {
@@ -51,6 +63,16 @@ bool evt_dispatch(evt_t *e)
 {
     if (!e || s_q_count == EVT_QUEUE_DEPTH) {
         return false;
+    }
+    /* Emitted from inside a handler: it's a cascade hop -- carry the depth and cap it. */
+    if (s_protected) {
+        int d = s_current_depth + 1;
+        if (d > EVT_DISPATCH_DEPTH_MAX) {
+            s_dispatch_dropped++;
+            EVT_LOGW("dispatch cascade too deep (tag %u): dropped", (unsigned) e->tag);
+            return false;
+        }
+        e->depth = (uint8_t) d;
     }
     int tail = (s_q_head + s_q_count) % EVT_QUEUE_DEPTH;
     s_queue[tail] = e;
@@ -107,6 +129,8 @@ int evt_drain(void)
         s_q_count--;
 
         volatile int base = s_frame_top;
+        volatile int base_now = s_now_depth;
+        s_current_depth = e->depth;
         if (setjmp(s_jb) == 0) {
             s_protected = true;
             frame_push(e);
@@ -114,6 +138,7 @@ int evt_drain(void)
             frame_pop();
         } else {
             evt_frames_unwind_to(base);
+            s_now_depth = base_now;
         }
         s_protected = false;
         ran++;
@@ -127,23 +152,34 @@ void evt_now(evt_t *e)
     if (!e) {
         return;
     }
+    if (s_now_depth >= EVT_NOW_DEPTH_MAX) {
+        s_now_rejected++;
+        EVT_LOGW("now cascade too deep (tag %u): refused", (unsigned) e->tag);
+        return;
+    }
 
     if (s_protected) {
         /* Nested: rely on the outer region's setjmp so a bail unwinds to the outermost. */
+        s_now_depth++;
         frame_push(NULL);
         run_handlers(e);
         frame_pop();
+        s_now_depth--;
         return;
     }
 
     volatile int base = s_frame_top;
+    volatile int base_now = s_now_depth;
     if (setjmp(s_jb) == 0) {
         s_protected = true;
+        s_now_depth++;
         frame_push(NULL);
         run_handlers(e);
         frame_pop();
+        s_now_depth--;
     } else {
         evt_frames_unwind_to(base);
+        s_now_depth = base_now;
     }
     s_protected = false;
 }
@@ -164,9 +200,28 @@ void evt_bus_reset(void)
     memset(s_frames, 0, sizeof s_frames);
     s_frame_top = 0;
     s_protected = false;
+    s_current_depth = 0;
+    s_now_depth = 0;
+    s_dispatch_dropped = 0;
+    s_now_rejected = 0;
 }
 
 int evt_frame_depth(void)
 {
     return s_frame_top;
+}
+
+uint32_t evt_dispatch_dropped(void)
+{
+    return s_dispatch_dropped;
+}
+
+uint32_t evt_now_rejected(void)
+{
+    return s_now_rejected;
+}
+
+int evt_now_depth(void)
+{
+    return s_now_depth;
 }
