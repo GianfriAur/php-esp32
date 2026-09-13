@@ -69,6 +69,11 @@ bool evt_pool_init(void)
         p->peak     = 0;
     }
 
+    if (!evt_isr_pool_init()) {
+        evt_pool_teardown();
+        return false;
+    }
+
     s_inited = true;
     return true;
 }
@@ -83,6 +88,7 @@ void evt_pool_teardown(void)
         POOL_FREE(p->busy);
         memset(p, 0, sizeof *p);
     }
+    evt_isr_pool_teardown();
     s_inited = false;
 }
 
@@ -115,6 +121,10 @@ evt_t *evt_pool_acquire(evt_class_t cls, uint16_t tag)
 void evt_pool_release(evt_t *e)
 {
     if (!e) {
+        return;
+    }
+    if (e->flags & EVT_FLAG_FROM_ISR) {
+        evt_isr_release(e);
         return;
     }
     evt_class_t cls = (evt_class_t) e->slot_class;

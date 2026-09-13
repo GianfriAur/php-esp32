@@ -2,6 +2,6 @@
 # of the component build. heap_caps (used by pool.c on target) is part of the always-available heap
 # component, so no explicit REQUIRES is needed.
 idf_component_register(
-    SRCS "src/pool.c" "src/dispatch.c"
+    SRCS "src/pool.c" "src/dispatch.c" "src/isr_pool.c"
     INCLUDE_DIRS "include"
 )

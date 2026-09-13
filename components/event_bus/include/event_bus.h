@@ -72,6 +72,27 @@ uint16_t evt_pool_peak(evt_class_t cls);
 uint16_t evt_pool_capacity(evt_class_t cls);
 uint32_t evt_pool_in_use_by_tag(uint16_t tag);   /* the leak oracle */
 
+/* A small separate reserve for events emitted from interrupt context, where the only possible policy
+ * is drop-and-count. Slots are TINY-sized; initialised and torn down with the main pool. */
+#ifndef EVT_ISR_POOL_COUNT
+#define EVT_ISR_POOL_COUNT  8
+#endif
+
+/* Take a slot from the ISR reserve (safe from interrupt context). Sets EVT_FLAG_FROM_ISR. Returns
+ * NULL and counts a drop when the reserve is empty -- the only option from an ISR. */
+evt_t *evt_isr_acquire(uint16_t tag);
+
+/* Return an ISR-reserve slot. evt_pool_release() routes FROM_ISR events here; rarely called directly. */
+void evt_isr_release(evt_t *e);
+
+uint32_t evt_isr_dropped(void);     /* events dropped for an empty ISR reserve */
+uint16_t evt_isr_in_use(void);
+uint16_t evt_isr_capacity(void);
+
+/* Internal: called by evt_pool_init() / evt_pool_teardown(). */
+bool evt_isr_pool_init(void);
+void evt_isr_pool_teardown(void);
+
 /* Queue depth and registry limits, overridable at build time. */
 #ifndef EVT_QUEUE_DEPTH
 #define EVT_QUEUE_DEPTH      64

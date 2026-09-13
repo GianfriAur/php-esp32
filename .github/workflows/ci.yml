@@ -44,6 +44,15 @@ jobs:
           python-version: '3.12'
       - run: python3 scripts/check-manifest.py "${{ matrix.version }}"
 
+  # Event bus C core gates: pool exhaustion, dispatch/now, automatic release on unwind, the cascade
+  # counters and the ISR pool. Pure C compiled and run on the host with gcc -- no hardware, no
+  # ESP-IDF, so it runs on every push and pull request.
+  event-bus-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: components/event_bus/test/run.sh
+
   # The build jobs below share three axes instead of a full cross-product (which would be
   # dozens of combos). They're heavy, so they stay off pull requests — pushes to master and
   # manual runs only. Each build also checks the image fits the board's app partition.

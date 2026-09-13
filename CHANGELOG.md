@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.1.0] - Event bus core
+
+Groundwork for the upcoming `event-driven` execution mode: the C core of the event bus. It is not
+exposed to PHP yet — an inert foundation with its own CI-gated test suite — so nothing you can call
+from a script changes in this release.
+
+### Added
+- **The event bus C core.** An event is a slot from a preallocated pool: fixed `TINY` / `SMALL` /
+  `MEDIUM` size classes, free-list based, with no allocation on the hot path. When a class is
+  exhausted, acquiring a slot fails instead of blocking or allocating — the pool is the backpressure —
+  and a per-tag in-use counter acts as a leak oracle. On top of the pool: `dispatch()` (queue an
+  event; ownership of the slot transfers to the queue) and `now()` (call the listeners inline, no
+  transfer); a dispatch-frame stack that returns every slot a frame still holds when it exits —
+  normally or through a `zend_bailout` unwind, across nested frames — so a handler that throws never
+  leaks its slot; two cascade guards (a queue-hop depth that drops the over-limit event, and a
+  nested-`now()` depth that refuses the call before it can overflow the task stack); and a small,
+  separate ISR reserve with a drop-and-count policy for events emitted from interrupt context. The
+  core is portable C — it compiles and runs on the host, no hardware needed.
+- **Event bus test gate in CI.** The pool-exhaustion and automatic-release suite — exhaustion per
+  size class, an exception mid-dispatch, a cascade that unwinds across frames, an intermediate
+  listener that throws (the slot is released exactly once), no leaks over thousands of mixed cycles,
+  plus the cascade counters and the ISR reserve — builds and runs on the host with `gcc -Werror` on
+  every push and pull request.
+
 ## [1.0.1] - Explicit pinning - Refactor Base code
 
 First step of the dual-core work behind the upcoming `event-driven` mode: make core assignment
