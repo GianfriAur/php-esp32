@@ -370,22 +370,22 @@ The HTTP server runs its handler on the small-stacked `httpd` task; PHP runs on 
 hand a single request back and forth through two binary semaphores:
 
 <!-- @steps -->
-1. The `httpd` handler parses the request off the socket into a single static `ws_request_t`
+1. The `httpd` handler parses the request off the socket into a single static `web_request_t`
    (method, URI, query, headers, cookies, and the POST body — read here, on the task that owns
    the socket).
 2. It serves the request directly if the path maps to an existing static file under the document
    root (`public/`) — no PHP cycle, exactly like `try_files $uri /index.php`. `.php` files,
    directories, `/`, and paths containing `..` are never served this way.
-3. Otherwise it gives `s_ws_req_ready`, waking `php_task`, and blocks on `s_ws_resp_ready`.
+3. Otherwise it gives `s_web_req_ready`, waking `php_task`, and blocks on `s_web_resp_ready`.
 4. `php_task` runs one full request cycle: it fills `SG(request_info)` before startup (so `$_GET`
    / `$_POST` see the query and body), calls `php_request_startup()`, runs the script under
    `zend_try`/`zend_catch`, flushes any headers the script set, and calls `php_request_shutdown()`.
    Output is appended to a growing response buffer by the SAPI `ub_write` hook.
-5. `php_task` gives `s_ws_resp_ready`; the `httpd` task wakes and sends the captured status,
+5. `php_task` gives `s_web_resp_ready`; the `httpd` task wakes and sends the captured status,
    headers and body, then frees the body buffer.
 <!-- @endsteps -->
 
-The httpd server handles one request at a time, so the single shared `ws_request_t`, the single
+The httpd server handles one request at a time, so the single shared `web_request_t`, the single
 response buffer and the header-capture buffers are all safe. Neither task touches the socket
 while the other is using it.
 
@@ -404,11 +404,11 @@ request-scoped hooks (the copy `sapi_startup()` made at init time):
 
 <!-- @code-block language="c" label="run_web_server(): wiring the request hooks" -->
 ```c
-sapi_module.ub_write                  = ws_ub_write;
-sapi_module.send_headers              = ws_send_headers;
-sapi_module.read_post                 = ws_read_post;
-sapi_module.read_cookies              = ws_read_cookies;
-sapi_module.register_server_variables = ws_register_server_vars;
+sapi_module.ub_write                  = web_ub_write;
+sapi_module.send_headers              = web_send_headers;
+sapi_module.read_post                 = web_read_post;
+sapi_module.read_cookies              = web_read_cookies;
+sapi_module.register_server_variables = web_register_server_vars;
 php_request_shutdown(NULL);   /* end the request embed_init opened; module stays up */
 ```
 <!-- @endcode-block -->
