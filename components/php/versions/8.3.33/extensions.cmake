@@ -396,3 +396,11 @@ option(PHP_EXT_I2C "Build the i2c extension (Baremetal\\I2c\\Bus and \\Device)" 
 if(PHP_EXT_I2C)
     target_compile_definitions(${COMPONENT_LIB} PRIVATE PHP_EXT_I2C_ENABLED)
 endif()
+
+# --- spi: Baremetal\Spi\Bus and \Device + the display/panel framework (§2.9) -----------------
+# The extension lives in components/php_ext_spi/. Here we declare the flag and switch on its
+# registration in internal_functions.c.
+option(PHP_EXT_SPI "Build the spi extension (Baremetal\\Spi\\Bus and \\Device + Output\\Display)" OFF)
+if(PHP_EXT_SPI)
+    target_compile_definitions(${COMPONENT_LIB} PRIVATE PHP_EXT_SPI_ENABLED)
+endif()
